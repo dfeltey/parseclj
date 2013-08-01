@@ -35,25 +35,21 @@
 
 
 ;; traditional Haskell-ish sequencing combinator
-;; need to generalize it to take more than 2 argumnents
-;; otherwise syntax will get messy very quickly
-;; the challenge then becomes handling parsers that ignore results...
-;; maybe macros can fix that issue...?
-(defn <*> [p1 p2]
-  (fn [inp]
-      (for [[v1 ss1] (p1 inp)
-	    [v2 ss2] (p2 ss1)]
-		   [(curry v1 v2) ss2])))
-                   ;; curry does exception handling to deal with not providing
-                   ;; v1 with all of its arguments immediately
+;; dealing with more than two args like this seems
+;; sort of a hack, but should work most of the time...
+;; need to figure out how this works with
+;; parsing that ignore their results....
+(defn <*> [p1 p2 & ps]
+  (let [result (fn [inp]
+                 (for [[v1 ss1] (p1 inp)
+	                     [v2 ss2] (p2 ss1)]
+		               [(curry v1 v2) ss2]))]
+    (reduce <*> result ps)))
 
 
 (defn <|> [p1 p2 & ps]
-  (fn [inp]
-    (let [result (concat (p1 inp) (p2 inp))]
-      (cond
-        (empty? ps) result
-        :else (reduce <*> result ps)))))
+    (let [result (fn [inp] (concat (p1 inp) (p2 inp)))]
+      (reduce <|> result ps)))
     
     
 
@@ -64,6 +60,18 @@
 
 
 ;; simple tests, need to move these out of this file
+
+(def a|b
+  (<|> (pSym \a)
+       (pSym \b)))
+
+(def a|b|c 
+  (<|> (pSym \a)
+       (pSym \b)
+       (pSym \c)))
+
+
+
 (def pLettera (pSym \a))
 
 (def pString_aa
