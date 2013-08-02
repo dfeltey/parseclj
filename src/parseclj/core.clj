@@ -39,6 +39,23 @@
 ;; sort of a hack, but should work most of the time...
 ;; need to figure out how this works with
 ;; parsing that ignore their results....
+;;
+;; I think the idea for handling parsers with an ignored return value
+;; might be an explicit ignore combinator that will parse the same content
+;; as its argument, but essentiall ignore the result so syntax would be roughly
+;
+; (<*> (ignore pIF)
+;       p1
+;       (ignore pThen)
+;       p2
+;       (ignore pElse)
+;      p3
+;        )
+;
+;; so this parses an if p1 then p2 else p3 type of statement
+;; but ignores the parses for recognizing the keywords, or at
+;; least ignores their values, and just passes along the remaining 
+;; stream to be parsed
 (defn <*> [p1 p2 & ps]
   (let [result (fn [inp]
                  (for [[v1 ss1] (p1 inp)
@@ -58,9 +75,9 @@
 
 
 
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; simple tests, need to move these out of this file
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (def a|b
   (<|> (pSym \a)
        (pSym \b)))
