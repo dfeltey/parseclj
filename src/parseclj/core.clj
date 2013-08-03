@@ -6,11 +6,31 @@
 ; Notes: 
 ; - need to make decisions about memoization, and how this plays in to the
 ;   tutorial paper
+;
+; - I think ignoring parse values can be added in by adding an Ignore record
+;   and an ignore function that wraps a parser in an Ignore record, this then 
+;   allows <*> and <$> combinators to check if they need to ignore an argument
+;   and apply the correct rules for the ignorant combinator...
+;
+;   similarly it seems easy enough to wrap everything in a Parser record as it 
+;   was before adding the macros, the only change seems to be making sure to 
+;   wrap the parser result returned by the macro in a Parser record as well as 
+;   the result of combinators.
+;
+;   It may be possible to attach error messages to particular parsers in a 
+;   similar way, via a wrapping record, just need to figure out how all of 
+;   the different wrappings will play around with one another, possibly add
+;   ignore and error fields to the parser record, which ignore and error 
+;   functions will set when called, this seems like a decent first solution
 ; 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; ToDo:
+; - Make Parser record private with :run :ignore :error keys(?) then
+;   export functions run ignore error that deal with these things
 ; - More combinators
 ; - parsers that ignore their results
+;   - can probably deal with this and errors with a record and
+;     and somewhat specializing the <*> and <$> definitions
 ; - Dealing with left/right recursion
 ; - Precedence
 ; - some sort of monadic or applicative interface
@@ -19,6 +39,18 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
+; Parser type, also allows annotating a parser with whether its result
+; should be ignored, 
+(defrecord Parser [ignore run])
+
+; declare this parser's result should be ignored
+(defn ignore [p] (Parser. true (:run p)))
+
+; easily build default parser records
+(defn parser [p] (Parser. false p))
+
+; easily run parsers with (run parser input)
+(defn run [p inp] ((:run p) inp))
 
 
 ;; Macro to make parsers lazy
@@ -26,20 +58,14 @@
 ;; parser body, allowing more 
 ;; general recursion
 (defmacro delay-parser [parser]
-  `(fn [ & args#] 
-    (apply ~parser args#)))
+  `(parser (fn [ & args#] 
+    (apply (:run ~parser) args#))))
 
 ;; macro to actually define lazy parser
 (defmacro define-parser [parser body]
   `(def ~parser (delay-parser ~body)))
 
 
-;; a record type for Parsers
-;; 
-;; might need to remove this after adding the lazy stuff
-;
-;; I need to think more about the interplay between this and the lazy stuff
-; (defrecord Parser [run])
 
 
 ;; helper function to hide the exception handling
@@ -49,10 +75,6 @@
      (f x)
      (catch Exception _ (partial f x))))
 
-(def ccons 
-  (fn [x]
-    (fn [y]
-      (cons x y))))
 
 ;; it might be necessary to wrap parsers in a record
 ;; as a level of indirection in order to avoid the 
@@ -65,11 +87,11 @@
 ;; it will just fail and return an empty sequence of 
 ;; parses
 (defn pSym [a] 
-    (fn [inp]
+    (parser (fn [inp]
       (cond
         (empty? inp) []
         (= (first inp) a) [[(first inp) (rest inp)]]
-        :else [])))
+        :else []))))
 
 
 
@@ -77,11 +99,11 @@
 ;; The parser that always succeeds and returns the 
 ;; value a as its result
 (defn pReturn [a]
-  (fn [inp] [[a inp]]))
+  (parser (fn [inp] [[a inp]])))
 
 ;; the corresponding failing parser
 (defn pFail []
-  (fn [inp] []))
+  (parser (fn [inp] [])))
 
 
 ;; traditional Haskell-ish sequencing combinator
@@ -109,22 +131,28 @@
 ;; I don't think that can be done without using macros
 ;; ignore will always need two arguments to know which side is supposed 
 ;; to be ignored
+;
+;
+;; right now adding in the records is slightly problematic, because
+;; the parser will end up wrapping many layers of parsers that should all
+;; be collapsed upon one another, this is why parens works ok. but
+;; parens1 and parens2 are throwing ClassCastExceptions
 (defn <*> [p1 p2 & ps]
-  (let [result (fn [inp]
-                 (for [[v1 ss1] (p1 inp)
-	                     [v2 ss2] (p2 ss1)]
+  (parser (let [result (fn [inp]
+                 (for [[v1 ss1] ((:run p1) inp)
+	                     [v2 ss2] ((:run p2) ss1)]
 		               [(curry v1 v2) ss2]))]
-    (reduce <*> result ps)))
+    (reduce <*> result ps))))
 
 
 (defn <|> [p1 p2 & ps]
-    (let [result (fn [inp] (concat (p1 inp) (p2 inp)))]
-      (reduce <|> result ps)))
+    (parser (let [result (fn [inp] (concat ((:run p1) inp) ((:run p2) inp)))]
+      (reduce <|> result ps))))
 
 
 (defn <$> [f p & ps]
-  (let [result (<*> (pReturn f) p)]
-    (reduce <*> result ps)))
+  (parser (let [result (<*> (pReturn f) p)]
+    (reduce <*> result ps))))
 
 
 
