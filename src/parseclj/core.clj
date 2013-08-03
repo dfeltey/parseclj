@@ -1,5 +1,26 @@
 (ns parseclj.core)
 
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Notes: 
+; - need to make decisions about memoization, and how this plays in to the
+;   tutorial paper
+; 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; ToDo:
+; - More combinators
+; - parsers that ignore their results
+; - Dealing with left/right recursion
+; - Precedence
+; - some sort of monadic or applicative interface
+; - documentation
+; - generic code cleanup
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
+
 ;; Macro to make parsers lazy
 ;; and avoid evalutation of the 
 ;; parser body, allowing more 
@@ -14,11 +35,11 @@
 
 
 ;; a record type for Parsers
-(defrecord Parser [run])
-
-; (defn run [p inp]
-;   (if (= (type p) Parser) ((:run p) inp)
-;     ((p) inp) ))
+;; 
+;; might need to remove this after adding the lazy stuff
+;
+;; I need to think more about the interplay between this and the lazy stuff
+; (defrecord Parser [run])
 
 
 ;; helper function to hide the exception handling
@@ -44,12 +65,11 @@
 ;; it will just fail and return an empty sequence of 
 ;; parses
 (defn pSym [a] 
-  (Parser.
     (fn [inp]
       (cond
         (empty? inp) []
         (= (first inp) a) [[(first inp) (rest inp)]]
-        :else []))))
+        :else [])))
 
 
 
@@ -57,11 +77,11 @@
 ;; The parser that always succeeds and returns the 
 ;; value a as its result
 (defn pReturn [a]
-  (Parser. (fn [inp] [[a inp]])))
+  (fn [inp] [[a inp]]))
 
 ;; the corresponding failing parser
 (defn pFail []
-  (Parser. (fn [inp] [])))
+  (fn [inp] []))
 
 
 ;; traditional Haskell-ish sequencing combinator
@@ -90,17 +110,16 @@
 ;; ignore will always need two arguments to know which side is supposed 
 ;; to be ignored
 (defn <*> [p1 p2 & ps]
-  (Parser. (let [result (fn [inp]
-                 (for [[v1 ss1] ((:run p1) inp)
-	                     [v2 ss2] ((:run p2) ss1)]
+  (let [result (fn [inp]
+                 (for [[v1 ss1] (p1 inp)
+	                     [v2 ss2] (p2 ss1)]
 		               [(curry v1 v2) ss2]))]
-    (reduce <*> result ps))))
+    (reduce <*> result ps)))
 
 
 (defn <|> [p1 p2 & ps]
-  (Parser.
-    (let [result (fn [inp] (concat ((:run p1) inp) ((:run p2) inp)))]
-      (reduce <|> result ps))))
+    (let [result (fn [inp] (concat (p1 inp) (p2 inp)))]
+      (reduce <|> result ps)))
 
 
 
@@ -114,28 +133,35 @@
 ;; simple tests, need to move these out of this file
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn parens_ []
-  (<*> 
-    (pReturn (fn [a b c d] (max (+ 1 b) d)))
-    (pSym \()
-    (Parser. (:run (parens_)))
-    (pSym \))
-    (<|> (Parser. (:run (parens_))) (pReturn 0))))
+(def lparen \()
+(def rparen \))
+
+(define-parser parens 
+  (<|>
+    (<*> 
+      (<*>
+        (<*> 
+          (<*> (pReturn (fn [a b c d] (max (+ 1 b) d))) (pSym lparen))
+          parens)
+        (pSym rparen))
+     parens)
+    (pReturn 0)))
+
 
 ;(def parens (parens_))
 
-(def a|b
+(define-parser a|b
   (<|> (pSym \a)
        (pSym \b)))
 
-(def a|b|c 
+(define-parser a|b|c 
   (<|> (pSym \a)
        (pSym \b)
        (pSym \c)))
 
-(def pLettera (pSym \a))
+(define-parser pLettera (pSym \a))
 
-(def pString_aa
+(define-parser pString_aa
   (<*>
 	   (<*>
 	     (pReturn cons)
@@ -153,7 +179,7 @@
 ;; but this is how Haskell actually handles it 
 ;; as well
 
-(def abcd
+(define-parser abcd
   (<*> 
     (<*> (pReturn cons) (pSym \a))
     (<*> (<*> (pReturn cons) (pSym \b))
