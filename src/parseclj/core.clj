@@ -122,6 +122,13 @@
       (reduce <|> result ps)))
 
 
+(defn <$> [f p & ps]
+  (let [result (<*> (pReturn f) p)]
+    (reduce <*> result ps)))
+
+
+
+
 
 ; (defn ignore [p]
 ;   (fn [inp]
@@ -146,6 +153,27 @@
         (pSym rparen))
      parens)
     (pReturn 0)))
+
+(define-parser parens1 
+  (<|>
+    (<*> 
+      (pReturn (fn [a b c d] (max (+ 1 b) d)))
+      (pSym lparen)
+      parens1
+      (pSym rparen)
+      parens1)
+    (pReturn 0)))
+
+(define-parser parens2 
+  (<|>
+    (<$> 
+      (fn [a b c d] (max (+ 1 b) d))
+      (pSym lparen)
+      parens2
+      (pSym rparen)
+      parens2)
+    (pReturn 0)))
+
 
 
 ;(def parens (parens_))
