@@ -25,8 +25,8 @@
 ; 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; ToDo:
-; - Make Parser record private with :run :ignore :error keys(?) then
-;   export functions run ignore error that deal with these things
+; - Make Parser record private with :run :ignore :error keys(?) then (DONE?)
+;   export functions run ignore error that deal with these things 
 ; - More combinators
 ; - parsers that ignore their results
 ;   - can probably deal with this and errors with a record and
@@ -131,28 +131,22 @@
 ;; I don't think that can be done without using macros
 ;; ignore will always need two arguments to know which side is supposed 
 ;; to be ignored
-;
-;
-;; right now adding in the records is slightly problematic, because
-;; the parser will end up wrapping many layers of parsers that should all
-;; be collapsed upon one another, this is why parens works ok. but
-;; parens1 and parens2 are throwing ClassCastExceptions
 (defn <*> [p1 p2 & ps]
-  (parser (let [result (fn [inp]
+  (let [result (parser (fn [inp]
                  (for [[v1 ss1] ((:run p1) inp)
 	                     [v2 ss2] ((:run p2) ss1)]
-		               [(curry v1 v2) ss2]))]
-    (reduce <*> result ps))))
+		               [(curry v1 v2) ss2])))]
+    (reduce <*> result ps)))
 
 
 (defn <|> [p1 p2 & ps]
-    (parser (let [result (fn [inp] (concat ((:run p1) inp) ((:run p2) inp)))]
-      (reduce <|> result ps))))
+    (let [result (parser (fn [inp] (concat ((:run p1) inp) ((:run p2) inp))))]
+      (reduce <|> result ps)))
 
 
 (defn <$> [f p & ps]
-  (parser (let [result (<*> (pReturn f) p)]
-    (reduce <*> result ps))))
+  (let [result (<*> (pReturn f) p)]
+    (reduce <*> result ps)))
 
 
 
