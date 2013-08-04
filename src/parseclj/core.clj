@@ -62,6 +62,8 @@
     (apply (:run ~parser) args#))))
 
 ;; macro to actually define lazy parser
+;;
+;; I'd like to fix this to allow the parser to possibly take arguments
 (defmacro define-parser [parser body]
   `(def ~parser (delay-parser ~body)))
 
@@ -135,7 +137,9 @@
   (let [result (parser (fn [inp]
                  (for [[v1 ss1] ((:run p1) inp)
 	                     [v2 ss2] ((:run p2) ss1)]
-		               [(curry v1 v2) ss2])))]
+		               (if (:ignore p2)
+                    [v1 ss2] 
+                    [(curry v1 v2) ss2]))))]
     (reduce <*> result ps)))
 
 
@@ -195,6 +199,14 @@
       (pSym rparen)
       parens2)
     (pReturn 0)))
+
+(defn pParens [p]
+  (<$>
+    (fn [x] x)
+    (ignore (pSym lparen))
+    p
+    (ignore (pSym rparen))
+    ))
 
 
 
