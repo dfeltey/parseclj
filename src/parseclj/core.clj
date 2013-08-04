@@ -208,6 +208,26 @@
     (ignore (pSym rparen))
     ))
 
+(def minc (fn [x] (fn [y] (max (+ x 1) y))))
+
+(define-parser parens3
+  (<|>
+    (<$>
+     minc
+     (pParens parens3)
+     parens3)
+    (pReturn 0)))
+
+; I don't know if this one will work without fixing the define-parser macro
+; need to make a decision about whether this should work only on strings
+; or try to dispatch on the type of the collection/sequence
+(defn pSyms [l] 
+  (cond
+    (empty? l) (pReturn (empty l))
+    :else (<$> cons
+               (pSym (first l))
+               (pSyms (rest l)))))
+
 
 
 ;(def parens (parens_))
