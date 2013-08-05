@@ -154,12 +154,24 @@
 
 
 
+; I don't know if this one will work without fixing the define-parser macro
+; need to make a decision about whether this should work only on strings
+; or try to dispatch on the type of the collection/sequence
+(defn pSyms [l] 
+  (cond
+    (empty? l) (pReturn (empty l))
+    :else (<$> cons
+               (pSym (first l))
+               (pSyms (rest l)))))
 
 
-; (defn ignore [p]
-;   (fn [inp]
-;     (for [[v ss] (p inp)]
-;       [(fn [x] x) ss])))
+;; temporary solution
+(defn pString [l] 
+  (cond
+    (empty? l) (pReturn (empty l))
+    :else (<$> (fn [x] (fn [y] (apply str (cons x y))))
+               (pSym (first l))
+               (pSyms (rest l)))))
 
     
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -218,15 +230,11 @@
      parens3)
     (pReturn 0)))
 
-; I don't know if this one will work without fixing the define-parser macro
-; need to make a decision about whether this should work only on strings
-; or try to dispatch on the type of the collection/sequence
-(defn pSyms [l] 
-  (cond
-    (empty? l) (pReturn (empty l))
-    :else (<$> cons
-               (pSym (first l))
-               (pSyms (rest l)))))
+
+
+
+
+
 
 
 
