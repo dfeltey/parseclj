@@ -171,7 +171,18 @@
     (empty? l) (pReturn (empty l))
     :else (<$> (fn [x] (fn [y] (apply str (cons x y))))
                (pSym (first l))
-               (pSyms (rest l)))))
+               (pString (rest l)))))
+;
+; user=> (run (<$> cons (pString "hello " ) (pString "world")) "hello world")
+; ([("hello " \w \o \r \l \d) ()])
+;
+; user=> (def conc (fn [x] (fn [y] (concat x y))))
+; #'user/conc
+; user=> (run (<$> conc (pString "hello " ) (pString "world")) "hello world")
+; ([(\h \e \l \l \o \space \w \o \r \l \d) ()])
+;
+; need to figure out how to fix this...
+
 
     
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
