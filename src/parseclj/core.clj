@@ -176,12 +176,32 @@
 ; user=> (run (<$> cons (pString "hello " ) (pString "world")) "hello world")
 ; ([("hello " \w \o \r \l \d) ()])
 ;
+; this appears to be the behavior of 
+; user=> (cons "hello"  "world")
+; ("hello" \w \o \r \l \d)
+;
 ; user=> (def conc (fn [x] (fn [y] (concat x y))))
 ; #'user/conc
 ; user=> (run (<$> conc (pString "hello " ) (pString "world")) "hello world")
 ; ([(\h \e \l \l \o \space \w \o \r \l \d) ()])
 ;
 ; need to figure out how to fix this...
+
+(defn prnv [s e] (do (prn s) e))
+
+(defn pToList [p]
+  (parser (fn [inp]
+    (for [[v ss] ((:run p) inp)]
+      [(list v) ss]))))
+
+(defn pSeq [p & ps]
+  (cond 
+    (empty? ps) (parser (fn [inp] 
+                  (for [[v ss] ((:run p) inp)]
+                    [(list v) ss])))
+    :else (<$> cons p (apply pSeq ps))))
+
+
 
 
     
